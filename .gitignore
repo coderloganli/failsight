@@ -1,0 +1,21 @@
+# Environments
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data, models and experiment tracking (never committed)
+/data/
+/artifacts/
+/mlruns/
+/mlartifacts/
+mlflow.db
+*.duckdb
+*.duckdb.wal

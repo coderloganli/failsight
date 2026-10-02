@@ -1,0 +1,70 @@
+# Default FailSight configuration. Paths are relative to the working directory.
+
+paths:
+  raw_dir: data/raw              # extracted daily CSVs (YYYY-MM-DD.csv)
+  database: data/failsight.duckdb
+  artifacts_dir: artifacts       # fitted models
+  scores_path: data/scores/failure_scores.parquet
+
+download:
+  # Source: https://www.backblaze.com/cloud-storage/resources/hard-drive-test-data
+  base_url: https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data
+  # Quarterly archives are named data_Q<n>_<year>.zip; 2013-2015 are data_<year>.zip.
+  periods: [Q1_2026]
+
+data:
+  # SMART attributes read from their raw counter value.
+  raw_attributes: [5, 9, 12, 187, 188, 192, 193, 194, 197, 198, 199, 241, 242]
+  # Attributes whose raw value is a vendor-specific packed encoding
+  # (e.g. read/seek error rates); the normalized value is used instead.
+  normalized_attributes: [1, 7]
+  # Raw counters that should only increase; a drop is treated as a counter reset.
+  cumulative_attributes: [5, 9, 12, 187, 188, 192, 193, 199, 241, 242]
+  # A row is positive if the drive fails within this many days (inclusive of today).
+  label_horizon_days: 30
+
+split:
+  # First day of the held-out period. null = the date at `test_start_quantile` of the date range.
+  test_start: null
+  test_start_quantile: 0.8
+  # Fraction of drives (by deterministic hash of serial number) reserved for test.
+  test_drive_fraction: 0.3
+  # Fraction of negative training rows kept (positives are always kept).
+  train_negative_fraction: 0.05
+  seed: 42
+
+features:
+  windows_days: [7, 30]
+
+supervised:
+  families: [logistic_regression, random_forest, gradient_boosting]
+  tuning:
+    n_trials: 30
+    n_splits: 3
+  selection:
+    # Keep features whose mean permutation importance (average precision drop) exceeds this.
+    min_importance: 0.0
+
+lstm:
+  seq_len: 30
+  hidden_size: 32
+  num_layers: 1
+  epochs: 5
+  batch_size: 512
+  learning_rate: 0.001
+
+anomaly:
+  # Drive models with fewer training failures than this use the unsupervised path.
+  min_failures: 20
+  pca_components: 5
+  isolation_forest:
+    n_estimators: 200
+  autoencoder:
+    hidden_size: 3
+    epochs: 20
+    batch_size: 512
+    learning_rate: 0.001
+
+tracking:
+  tracking_uri: sqlite:///mlflow.db
+  experiment: failsight
